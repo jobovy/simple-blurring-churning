@@ -219,6 +219,24 @@ def _dagedFehRg(feh,Rg,skewm=0.2,dFehdR=-0.075):
     return -10.*10.**feh*numpy.log(10.)\
         /((numpy.exp(skewm+dFehdR*(Rg-8.))-0.05))
 
+def test_dfehdAgeRg():
+    ages= numpy.tile(numpy.linspace(1.,10.,101),(101,1))
+    Rs= numpy.tile(numpy.linspace(2.,16.,101),(101,1)).T
+    dx= 10.**-8.
+    dage= _dfehdAgeRg(ages,Rs)
+    dage_num= (fehAgeRg(ages+dx,Rs)-fehAgeRg(ages,Rs))/dx
+    assert numpy.all(numpy.fabs(dage-dage_num) < 10.**-6.), 'dfehdAgeRg implemented incorrectly'
+    return None
+
+def test_dagedFgeRg():
+    fehs= numpy.tile(numpy.linspace(-1.5,0.7,101),(101,1))
+    Rs= numpy.tile(numpy.linspace(2.,16.,101),(101,1)).T
+    dx= 10.**-8.
+    dfeh= _dagedFehRg(fehs,Rs)
+    dfeh_num= (ageFehRg(fehs+dx,Rs)-ageFehRg(fehs,Rs))/dx
+    assert numpy.all(numpy.fabs(dfeh-dfeh_num) < 10.**-5.), 'dagedFehRg implemented incorrectly'
+    return None
+
 # Blurring MDF
 def blurring_pFehR(feh,R,
                    skewm=0.2,skews=0.2,skewa=-4.,
