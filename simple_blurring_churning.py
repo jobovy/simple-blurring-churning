@@ -18,7 +18,10 @@ def scalarDecorator(func):
             scalarOut= True
             newargs= ()
             for ii in range(len(args)):
-                newargs= newargs+(numpy.array([args[ii]]),)
+                if ii == 0:
+                    newargs= newargs+(numpy.array([args[ii]]),)
+                else:
+                    newargs= newargs+(args[ii],)
             args= newargs
         else:
             scalarOut= False
@@ -173,6 +176,31 @@ def pFehRg(Feh,Rg,
     """
     return skewnormal(Feh,m=skewm+dFehdR*(Rg-4.),s=skews,a=skewa)
 
+def pAgeRg(age,Rg,
+           skewm=0.2,skews=0.2,skewa=-4.,
+           dFehdR=-0.075):
+    """
+    NAME:
+       pAgeRg
+    PURPOSE:
+       The initial age DF at a given radius Rg
+    INPUT:
+       age - age (/Gyr)
+       Rg - Radius (/kpc)
+       skewm= (0.2) mean of the initial MDF at 4 kpc
+       skews= (0.2) standard dev. of the initial MDF
+       skewa= (-4.) skewness parameter of the initial MDF
+       dFehdR= (-0.075) initial metallicity gradient
+    OUTPUT:
+       p(age|Rg) at the initial time
+    HISTORY:
+       2015-01-12 - Written - Bovy (IAS)
+    """
+    ageFeh= fehAgeRg(age,Rg,skewm=skewm,dFehdR=dFehdR)
+    return pFehRg(ageFeh,Rg,skewm=skewm,skews=skews,skewa=skewa,
+                  dFehdR=dFehdR)\
+                  /numpy.fabs(_dagedFehRg(ageFeh,Rg,skewm=skewm,dFehdR=dFehdR))
+
 # The relation between age and metallicity at a given radius
 def fehAgeRg(age,Rg,skewm=0.2,dFehdR=-0.075):
     """
@@ -210,7 +238,7 @@ def ageFehRg(feh,Rg,skewm=0.2,dFehdR=-0.075):
     """
     return 10.-10.*(10.**feh-0.05)/((numpy.exp(skewm+dFehdR*(Rg-8.))-0.05))
 
-# Also need derivatives for integrals
+# Also need derivatives for integrals and distribution
 def _dfehdAgeRg(age,Rg,skewm=0.2,dFehdR=-0.075):
     return -1./10./numpy.log(10.)*(numpy.exp(skewm+dFehdR*(Rg-8.))-0.05)\
         /(0.05+(10.-age)/10.*(numpy.exp(skewm+dFehdR*(Rg-8.))-0.05))
@@ -238,6 +266,7 @@ def test_dagedFgeRg():
     return None
 
 # Blurring MDF
+@scalarDecorator
 def blurring_pFehR(feh,R,
                    skewm=0.2,skews=0.2,skewa=-4.,
                    dFehdR=-0.075,
@@ -276,6 +305,7 @@ def blurring_pFehR(feh,R,
     return out
 
 # Churning age distribution
+@scalarDecorator
 def churning_pAgeR(age,R,
                    skewm=0.2,skews=0.2,skewa=-4.,
                    dFehdR=-0.075,Rd=2.2,
@@ -309,7 +339,8 @@ def churning_pAgeR(age,R,
                              skewa=skewa,
                              dFehdR=-0.075)\
                 *churning_pRgR(x,R,Rd=Rd,sr=sr,
-                               hr=hr,hs=hs),
+                               hr=hr,hs=hs)\
+                /numpy.fabs(_dagedFehRg(fehAgeRg(age[ii],x,skewm=skewm,dFehdR=dFehdR),x)),
             numpy.amax([0.,R-4.]),R+6.,
             tol=10.**-4.,rtol=10.**-3.,
             vec_func=False)[0]
