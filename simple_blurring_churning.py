@@ -4,9 +4,10 @@
 ###############################################################################
 from functools import wraps
 import numpy
+from scipy import integrate
 from galpy.orbit import Orbit
 from galpy.df import dehnendf
-from scipy import integrate
+from skewnormal import skewnormal
 _R0= 8. #kpc
 _V0= 220. #kms
 def scalarDecorator(func):
@@ -27,6 +28,10 @@ def scalarDecorator(func):
         else:
             return result
     return scalar_wrapper
+
+#
+# PURE DYNAMICS
+#
 
 # Blurring p(Rg|R)
 @scalarDecorator
@@ -141,3 +146,29 @@ def churning_pRgR(Rg,R,Rd=2.2,sr=31.4,hr=3.,hs=267.):
             0.,10.,tol=10.**-4.,rtol=10**-3.,vec_func=False)[0] #hack
     return out
 
+#
+# MDFs
+#
+
+# Initial MDF at different radii
+def pFehRg(Feh,Rg,
+           skewm=0.2,skews=0.2,skewa=-4.,
+           dFehdR=-0.075):
+    """
+    NAME:
+       pFehRg
+    PURPOSE:
+       The initial MDF at a given radius Rg
+    INPUT:
+       Feh - Metallicity
+       Rg - Radius (/kpc)
+       skewm= (0.2) mean of the initial MDF at 4 kpc
+       skews= (0.2) standard dev. of the initial MDF
+       skewa= (-4.) skewness parameter of the initial MDF
+       dFehdR= (-0.075) initial metallicity gradient
+    OUTPUT:
+       p(Feh|Rg) at the initial time
+    HISTORY:
+       2015-01-12 - Written - Bovy (IAS)
+    """
+    return skewnormal(Feh,m=skewm+dFehdR*(Rg-4.),s=skews,a=skewa)
