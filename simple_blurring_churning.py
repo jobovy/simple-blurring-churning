@@ -172,3 +172,41 @@ def pFehRg(Feh,Rg,
        2015-01-12 - Written - Bovy (IAS)
     """
     return skewnormal(Feh,m=skewm+dFehdR*(Rg-4.),s=skews,a=skewa)
+
+# The relation between age and metallicity at a given radius
+def fehAgeRg(age,Rg,skewm=0.2,dFehdR=-0.075):
+    """
+    NAME:
+       fehAgeRg
+    PURPOSE:
+       The metallicity corresponding to a given age at radius Rg; assuming linear increase in exp(Feh) with time from 0.05 Zsolar
+    INPUT:
+       age - age (/Gyr)
+       Rg - guiding-center radius (/kpc)
+       skewm= (0.2) mean of the initial MDF at 4 kpc
+       dFehdR= (-0.075) initial metallicity gradient  
+    OUTPUT:
+       FeH(age,Rg)
+    HISTORY:
+       2015-01-12 - Written - Bovy (IAS)
+    """
+    return numpy.log10(0.05+(10.-age)/10.*(numpy.exp(skewm+dFehdR*(Rg-8.))-0.05))
+
+def ageFehRg(feh,Rg,skewm=0.2,dFehdR=-0.075):
+    """
+    NAME:
+       ageFehRg
+    PURPOSE:
+       The age corresponding to a given metallicity at radius Rg; assuming linear increase in exp(Feh) with time from 0.05 Zsolar
+    INPUT:
+       feh - metallicity
+       Rg - guiding-center radius (/kpc)
+       skewm= (0.2) mean of the initial MDF at 4 kpc
+       dFehdR= (-0.075) initial metallicity gradient  
+    OUTPUT:
+       age(FeH,Rg)
+    HISTORY:
+       2015-01-12 - Written - Bovy (IAS)
+    """
+    return 10.-10.*(10.**feh-0.05)/((numpy.exp(skewm+dFehdR*(Rg-8.))-0.05))
+
