@@ -143,7 +143,7 @@ def churning_pRgR(Rg,R,Rd=2.2,sr=31.4,hr=3.,hs=267.):
                                                                tau,Rd=Rd),
                                              numpy.amax([Rg[ii]-4.,0.]),
                                              Rg[ii]+6.,n=40)[0],
-            0.,10.,tol=10.**-4.,rtol=10**-3.,vec_func=False)[0] #hack
+            0.,10.,tol=10.**-4.,rtol=10**-3.,vec_func=False)[0]
     return out
 
 #
@@ -210,3 +210,42 @@ def ageFehRg(feh,Rg,skewm=0.2,dFehdR=-0.075):
     """
     return 10.-10.*(10.**feh-0.05)/((numpy.exp(skewm+dFehdR*(Rg-8.))-0.05))
 
+# Also need derivatives for integrals
+
+# Blurring MDF
+def blurring_pFehR(feh,R,
+                   skewm=0.2,skews=0.2,skewa=-4.,
+                   dFehdR=-0.075,
+                   sr=31.4,hr=3.,hs=267.):
+    """
+    NAME:
+       blurring_pFehR
+    PURPOSE:
+       The distribution of metallicities at a given R due to blurring
+    INPUT:
+       feh - metallicity
+       R - radius (/kpc)
+       skewm= (0.2) mean of the initial MDF at 4 kpc
+       skews= (0.2) standard dev. of the initial MDF
+       skewa= (-4.) skewness parameter of the initial MDF
+       dFehdR= (-0.075) initial metallicity gradient
+       sr= (31.4 km/s) velocity dispersion at R0
+       hr= (3 kpc) scale length
+       hs= (267 kpc) dispersion scale length
+    OUTPUT:
+       p(Feh|R)
+    HISTORY:
+       2015-01-12 - Written - Bovy (IAS)
+    """
+    out= numpy.empty_like(feh)
+    for ii in range(len(feh)):
+        out[ii]= integrate.quadrature(lambda x: pFehRg(feh[ii],x,
+                                                       skewm=skewm,skews=skews,
+                                                       skewa=skewa,
+                                                       dFehdR=-0.075)\
+                                          *blurring_pRgR(x,R,sr=sr,
+                                                         hr=hr,hs=hs),
+                                      numpy.amax([0.,R-4.]),R+4.,
+                                      tol=10.**-4.,rtol=10.**-3.,
+                                      vec_func=False)[0]
+    return out
