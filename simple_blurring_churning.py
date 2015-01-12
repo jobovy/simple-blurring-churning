@@ -211,6 +211,13 @@ def ageFehRg(feh,Rg,skewm=0.2,dFehdR=-0.075):
     return 10.-10.*(10.**feh-0.05)/((numpy.exp(skewm+dFehdR*(Rg-8.))-0.05))
 
 # Also need derivatives for integrals
+def _dfehdAgeRg(age,Rg,skewm=0.2,dFehdR=-0.075):
+    return -1./10./numpy.log(10.)*(numpy.exp(skewm+dFehdR*(Rg-8.))-0.05)\
+        /(0.05+(10.-age)/10.*(numpy.exp(skewm+dFehdR*(Rg-8.))-0.05))
+
+def _dagedFehRg(feh,Rg,skewm=0.2,dFehdR=-0.075):
+    return -10.*10.**feh*numpy.log(10.)\
+        /((numpy.exp(skewm+dFehdR*(Rg-8.))-0.05))
 
 # Blurring MDF
 def blurring_pFehR(feh,R,
@@ -248,4 +255,44 @@ def blurring_pFehR(feh,R,
                                       numpy.amax([0.,R-4.]),R+4.,
                                       tol=10.**-4.,rtol=10.**-3.,
                                       vec_func=False)[0]
+    return out
+
+# Churning age distribution
+def churning_pAgeR(age,R,
+                   skewm=0.2,skews=0.2,skewa=-4.,
+                   dFehdR=-0.075,Rd=2.2,
+                   sr=31.4,hr=3.,hs=267.):
+    """
+    NAME:
+       churning_pAgeR
+    PURPOSE:
+       The distribution of ages at a given R due to churning
+    INPUT:
+       age - age (/Gyr)
+       R - radius (/kpc)
+       skewm= (0.2) mean of the initial MDF at 4 kpc
+       skews= (0.2) standard dev. of the initial MDF
+       skewa= (-4.) skewness parameter of the initial MDF
+       dFehdR= (-0.075) initial metallicity gradient
+       Rd= (2.2 kpc) mass scale length of the disk
+       sr= (31.4 km/s) velocity dispersion at R0
+       hr= (3 kpc) scale length
+       hs= (267 kpc) dispersion scale length
+    OUTPUT:
+       p(age|R)
+    HISTORY:
+       2015-01-12 - Written - Bovy (IAS)
+    """
+    out= numpy.empty_like(age)
+    for ii in range(len(age)):
+        out[ii]= integrate.quadrature(\
+            lambda x: pFehRg(fehAgeRg(age[ii],x,skewm=skewm,dFehdR=dFehdR),x,
+                             skewm=skewm,skews=skews,
+                             skewa=skewa,
+                             dFehdR=-0.075)\
+                *churning_pRgR(x,R,Rd=Rd,sr=sr,
+                               hr=hr,hs=hs),
+            numpy.amax([0.,R-4.]),R+6.,
+            tol=10.**-4.,rtol=10.**-3.,
+            vec_func=False)[0]
     return out
