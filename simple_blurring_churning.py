@@ -54,3 +54,23 @@ def blurring_pRgR(Rg,R,sr=31.4,hr=3.,hs=267.):
         out[ii]= df(Orbit([R/8.,0.,Rg[ii]/R]))
     return out
 
+# Churning p(final Rg | initial Rg, tau)
+@scalarDecorator
+def churning_pRgfRgi(Rgf,Rgi,tau,Rd=2.2):
+    """
+    NAME:
+       churning_pRgfRgi
+    PURPOSE:
+       The distribution of final guiding-center radii from churning
+    INPUT:
+       Rgf - Guiding center radius (/kpc), can be array
+       Rgi - Initial guiding-center radius (/kpc)
+       tau - time (/Gyr)
+       Rd= (2.2 kpc) mass scale length of the disk
+    OUTPUT:
+       p(Rgf|Rgi)
+    HISTORY:
+       2015-01-12 - Written - Bovy (IAS)
+    """
+    return 1./numpy.sqrt(2.*numpy.pi*(0.01+tau*Rgi*numpy.exp(-Rgi/Rd)))\
+        *numpy.exp(-(Rgi-Rgf)**2./2./(0.01+tau*Rgi*numpy.exp(-Rgi/Rd)))
