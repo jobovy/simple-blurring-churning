@@ -403,3 +403,7 @@ def churning_pFehR(feh,R,
                                       numpy.amax([0.,R-12.]),(feh[ii]-skewm-skews)/dFehdR+4.)[0]
     return out
 
+def skewness(x,mdf):
+    m= numpy.sum(x*mdf)/numpy.sum(mdf)
+    return numpy.sum((x-m)**3.*mdf)/numpy.sum(mdf)\
+        /(numpy.sum((x-m)**2*mdf)/numpy.sum(mdf))**1.5
