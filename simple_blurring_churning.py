@@ -462,14 +462,8 @@ def churning_pFehR(feh,R,
         # Integrate
         def intFunc(x):
             tage= ageFunc(x)
-            if tage <= 0.: return 0.
-            if tage > 10.: return 0.
-            if numpy.isnan(tage): return 0.
-            #print x, tage, ageDF(ageFunc(x)),\
-            #    churning_pRgRtau(x,R,tage,
-            #                     Rd=Rd,sr=sr,
-            #                     hr=hr,hs=hs),\
-            #                     numpy.fabs(_dfehdAgeRg(tage,x))
+            if tage <= 0. or tage > 10. or numpy.isnan(tage):
+                return 0.
             return ageDF(ageFunc(x))\
                                 *churning_pRgRtau(x,R,tage,
                                                   Rd=Rd,sr=sr,
@@ -510,36 +504,24 @@ def churning_pFehAgeR(feh,age,R,
        2015-01-13 - Written - Bovy (IAS)
     """
     out= numpy.empty_like(feh)
+    # p(age|R)
+    if useInitialAgeDF:
+        ageP= pAgeRg(age,R,skewm=skewm,skews=skews,skewa=skewa,
+                     dFehdR=dFehdR)
+    else:
+        ageP= churning_pAgeR(age,R,skewm=skewm,skews=skews,
+                             skewa=skewa,dFehdR=dFehdR,Rd=Rd,
+                             sr=sr,hr=hr,hs=hs)
     for ii in range(len(feh)):
-        # shortcut for Age DF
-        if useInitialAgeDF:
-            ageDF= lambda a: pAgeRg(a,R,skewm=skewm,skews=skews,skewa=skewa,
-                                    dFehdR=dFehdR)
-        else:
-            ageDF= lambda a: churning_pAgeR(a,R,skewm=skewm,skews=skews,
-                                            skewa=skewa,dFehdR=dFehdR,Rd=Rd,
-                                            sr=sr,hr=hr,hs=hs)
-        # Short Rg function, so we don't have to repeat this
-        ageFunc= lambda r: ageFehRg(feh[ii],r,skewm=skewm,skews=skews,
-                                    dFehdR=dFehdR)
-        # Integrate
-        def intFunc(x):
-            tage= ageFunc(x)
-            if tage <= 0.: return 0.
-            if tage > 10.: return 0.
-            if numpy.isnan(tage): return 0.
-            #print x, tage, ageDF(ageFunc(x)),\
-            #    churning_pRgRtau(x,R,tage,
-            #                     Rd=Rd,sr=sr,
-            #                     hr=hr,hs=hs),\
-            #                     numpy.fabs(_dfehdAgeRg(tage,x))
-            return ageDF(ageFunc(x))\
-                                *churning_pRgRtau(x,R,tage,
-                                                  Rd=Rd,sr=sr,
-                                                  hr=hr,hs=hs)\
-                /numpy.fabs(_dfehdAgeRg(tage,x))
-        out[ii]= integrate.quad(intFunc,
-                                      numpy.amax([0.,R-12.]),(feh[ii]-skewm-skews)/dFehdR+4.)[0]
+        trg= RgAgeFeh(age,feh[ii],
+                      skewm=skewm,skews=skews,dFehdR=dFehdR)
+        if trg <= 0. or numpy.isnan(trg) or numpy.isinf(trg) \
+                or feh[ii] > (skews+skewm+dFehdR*(trg-4.)):
+            out[ii]= 0.
+            continue
+        out[ii]= \
+            churning_pRgRtau(trg,R,age,Rd=Rd,sr=sr,hr=hr,hs=hs)\
+            *ageP/_dfehdRgAge(trg,age,skewm=skewm,skews=skews,dFehdR=dFehdR)
     return out
 
 def skewness(x,mdf):
