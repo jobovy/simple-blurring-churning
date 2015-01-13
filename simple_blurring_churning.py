@@ -12,13 +12,13 @@ _R0= 8. #kpc
 _V0= 220. #kms
 _LINEARENRICHMENT= False
 _TAUEQ= 2.
-_ZINIT= 0.15
+_ZINIT= 0.12
 _FMIG= 0.2
 # defaults
-_SKEWM_DEFAULT= 0.8
-_SKEWS_DEFAULT= 0.2
+_SKEWM_DEFAULT= 0.4
+_SKEWS_DEFAULT= 0.1
 _SKEWA_DEFAULT= -4.
-_DFEHDR_DEFAULT= -0.15
+_DFEHDR_DEFAULT= -0.1
 def scalarDecorator(func):
     """Decorator to return scalar outputs"""
     @wraps(func)
@@ -89,7 +89,7 @@ def churning_pRgfRgi(Rgf,Rgi,tau,Rd=2.2):
     HISTORY:
        2015-01-12 - Written - Bovy (IAS)
     """
-    sig= (0.01+_FMIG*tau*Rgi*numpy.exp(-(Rgi-5.)**2./9.))
+    sig= (0.01+_FMIG*tau*Rgi*numpy.exp(-(Rgi-8.)**2./16.))
     return 1./numpy.sqrt(2.*numpy.pi)\
         *numpy.exp(-(Rgi-Rgf)**2./2./sig)
 
@@ -213,7 +213,7 @@ def pAgeRg(age,Rg,
                   /numpy.fabs(_dagedFehRg(ageFeh,Rg,skewm=skewm,dFehdR=dFehdR))
 
 # The relation between age and metallicity at a given radius
-def fehAgeRg(age,Rg,skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,dFehdR=_DFEHDR_DEFAULT,lin=False):
+def fehAgeRg(age,Rg,skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,dFehdR=_DFEHDR_DEFAULT):
     """
     NAME:
        fehAgeRg
@@ -231,9 +231,9 @@ def fehAgeRg(age,Rg,skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,dFehdR=_DFEHDR_DEF
        2015-01-12 - Written - Bovy (IAS)
     """
     if _LINEARENRICHMENT:
-        return numpy.log10(_ZINIT+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-4.))-_ZINIT))
+        return numpy.log10(_ZINIT+(10.-age)/10.*(10.**(skews+skewm+dFehdR*(Rg-4.))-_ZINIT))
     else:
-        eq= numpy.exp(skews+skewm+dFehdR*(Rg-4.))
+        eq= 10.**(skews+skewm+dFehdR*(Rg-4.))
         return numpy.log10((eq-_ZINIT)*(1.-numpy.exp(-(10.-age)/_TAUEQ))+_ZINIT)
 
 def ageFehRg(feh,Rg,skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,dFehdR=_DFEHDR_DEFAULT):
@@ -254,27 +254,58 @@ def ageFehRg(feh,Rg,skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,dFehdR=_DFEHDR_DEF
        2015-01-12 - Written - Bovy (IAS)
     """
     if _LINEARENRICHMENT:
-        return 10.-10.*(10.**feh-_ZINIT)/((numpy.exp(skews+skewm+dFehdR*(Rg-4.))-_ZINIT))
+        return 10.-10.*(10.**feh-_ZINIT)/((10.**(skews+skewm+dFehdR*(Rg-4.))-_ZINIT))
     else:
-        eq= numpy.exp(skews+skewm+dFehdR*(Rg-4.))
+        eq= 10.**(skews+skewm+dFehdR*(Rg-4.))
         return 10.+numpy.log(1.-(10.**feh-_ZINIT)/(eq-_ZINIT))*_TAUEQ
+
+def RgAgeFeh(age,feh,
+             skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,dFehdR=_DFEHDR_DEFAULT):
+    """
+    NAME:
+       RgAgeFeh
+    PURPOSE:
+       The guiding-center radius corresponding to a given metallicity and age; assuming linear increase in exp(Feh) with time from _ZINIT Zsolar
+    INPUT:
+       age - age (/Gyr)
+       feh - metallicity
+       skewm= (0.8) mean of the initial MDF at 4 kpc
+       skews= (0.2) standard dev. of the initial MDF
+       dFehdR= (-0.15) initial metallicity gradient  
+    OUTPUT:
+       Rg(age,FeH)
+    HISTORY:
+       2015-01-13 - Written - Bovy (IAS)
+    """
+    if _LINEARENRICHMENT:
+        return (numpy.log10(10.*(10.**feh-_ZINIT)/(10.-age))-skewm-skews)/dFehdR+4.
+    else:
+        return (numpy.log10((10.**feh-_ZINIT)/(1.-numpy.exp(-(10.-age)/_TAUEQ))+_ZINIT)-skews-skewm)/dFehdR+4.
 
 # Also need derivatives for integrals and distribution
 def _dfehdAgeRg(age,Rg,skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,dFehdR=_DFEHDR_DEFAULT):
     if _LINEARENRICHMENT:
-        return -1./10./numpy.log(10.)*(numpy.exp(skews+skewm+dFehdR*(Rg-4.))-_ZINIT)\
+        return -1./10./numpy.log(10.)*(10.**(skews+skewm+dFehdR*(Rg-4.))-_ZINIT)\
         /(_ZINIT+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-4.))-_ZINIT))
     else:
-        eq= numpy.exp(skews+skewm+dFehdR*(Rg-4.))
+        eq= 10.**(skews+skewm+dFehdR*(Rg-4.))
         return -(eq-_ZINIT)*numpy.exp(-(10.-age)/_TAUEQ)/(((eq-_ZINIT)*(1.-numpy.exp(-(10.-age)/_TAUEQ))+_ZINIT))/numpy.log(10.)/_TAUEQ
 
 def _dagedFehRg(feh,Rg,skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,dFehdR=_DFEHDR_DEFAULT):
     if _LINEARENRICHMENT:
         return -10.*10.**feh*numpy.log(10.)\
-            /((numpy.exp(skews+skewm+dFehdR*(Rg-4.))-_ZINIT))
+            /((10.**(skews+skewm+dFehdR*(Rg-4.))-_ZINIT))
     else:
-        eq= numpy.exp(skews+skewm+dFehdR*(Rg-4.))
+        eq= 10.**(skews+skewm+dFehdR*(Rg-4.))
         return -_TAUEQ*numpy.log(10.)*10.**feh/(eq-_ZINIT)/(1.-(10.**feh-_ZINIT)/(eq-_ZINIT))
+
+def _dfehdRgAge(Rg,age,skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,dFehdR=_DFEHDR_DEFAULT):
+    feh= fehAgeRg(age,Rg,skewm=skewm,skews=skews,dFehdR=dFehdR)
+    if _LINEARENRICHMENT:
+        return (10.-age)/10.*10.**(skews+skewm+dFehdR*(Rg-4.))*dFehdR/10.**feh
+    else:
+        eq= 10.**(skews+skewm+dFehdR*(Rg-4.))
+        return (1.-numpy.exp(-(10.-age)/_TAUEQ))*eq*dFehdR/10.**feh
 
 def test_dfehdAgeRg():
     ages= numpy.tile(numpy.linspace(1.,10.,101),(101,1))
@@ -282,8 +313,7 @@ def test_dfehdAgeRg():
     dx= 10.**-8.
     dage= _dfehdAgeRg(ages,Rs)
     dage_num= (fehAgeRg(ages+dx,Rs)-fehAgeRg(ages,Rs))/dx
-    print numpy.amax(numpy.fabs(dage-dage_num))
-    assert numpy.all(numpy.fabs(dage-dage_num) < 10.**-6.), 'dfehdAgeRg implemented incorrectly'
+    assert numpy.all(numpy.fabs(dage-dage_num) < 10.**-4.), 'dfehdAgeRg implemented incorrectly'
     return None
 
 def test_dagedFgeRg():
@@ -293,10 +323,16 @@ def test_dagedFgeRg():
     dx= 10.**-8.
     dfeh= _dagedFehRg(fehs,Rs)
     dfeh_num= (ageFehRg(fehs+dx,Rs)-ageFehRg(fehs,Rs))/dx
-    print numpy.nanmax(numpy.fabs(dfeh-dfeh_num))
-    print Rs[:,-20]
-    print (numpy.fabs(dfeh-dfeh_num))[:,-20]
-    assert numpy.all((numpy.fabs(dfeh-dfeh_num) < 10.**-5.)+numpy.isnan(dfeh)), 'dagedFehRg implemented incorrectly'
+    assert numpy.all((numpy.fabs(dfeh-dfeh_num) < 10.**-4.)+numpy.isnan(dfeh)), 'dagedFehRg implemented incorrectly'
+    return None
+
+def test_dfehdRgAge():
+    Rs= numpy.tile(numpy.linspace(2.,16.,101),(101,1)).T
+    ages= numpy.tile(numpy.linspace(1.,9.9,101),(101,1))
+    dx= 10.**-8.
+    dfeh= _dfehdRgAge(Rs,ages)
+    dfeh_num= (fehAgeRg(ages,Rs+dx)-fehAgeRg(ages,Rs))/dx
+    assert numpy.all((numpy.fabs(dfeh-dfeh_num) < 10.**-6.)+numpy.isnan(dfeh)), 'dfehdRgAge implemented incorrectly'
     return None
 
 # Blurring MDF
@@ -421,6 +457,69 @@ def churning_pFehR(feh,R,
                                             skewa=skewa,dFehdR=dFehdR,Rd=Rd,
                                             sr=sr,hr=hr,hs=hs)
         # Short age function, so we don't have to repeat this
+        ageFunc= lambda r: ageFehRg(feh[ii],r,skewm=skewm,skews=skews,
+                                    dFehdR=dFehdR)
+        # Integrate
+        def intFunc(x):
+            tage= ageFunc(x)
+            if tage <= 0.: return 0.
+            if tage > 10.: return 0.
+            if numpy.isnan(tage): return 0.
+            #print x, tage, ageDF(ageFunc(x)),\
+            #    churning_pRgRtau(x,R,tage,
+            #                     Rd=Rd,sr=sr,
+            #                     hr=hr,hs=hs),\
+            #                     numpy.fabs(_dfehdAgeRg(tage,x))
+            return ageDF(ageFunc(x))\
+                                *churning_pRgRtau(x,R,tage,
+                                                  Rd=Rd,sr=sr,
+                                                  hr=hr,hs=hs)\
+                /numpy.fabs(_dfehdAgeRg(tage,x))
+        out[ii]= integrate.quad(intFunc,
+                                      numpy.amax([0.,R-12.]),(feh[ii]-skewm-skews)/dFehdR+4.)[0]
+    return out
+
+# Churning metallicity distribution
+@scalarDecorator
+def churning_pFehAgeR(feh,age,R,
+                      skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,
+                      skewa=_SKEWA_DEFAULT,
+                      dFehdR=_DFEHDR_DEFAULT,Rd=2.2,
+                      sr=31.4,hr=3.,hs=267.,
+                      useInitialAgeDF=True):
+    """
+    NAME:
+       churning_pFehAgeR
+    PURPOSE:
+       The distribution of metallicities and ages at a given R due to churning
+    INPUT:
+       feh - metallicity (can be array)
+       age - age (/Gyr)
+       R - radius (/kpc)
+       skewm= (0.8) mean of the initial MDF at 4 kpc
+       skews= (0.2) standard dev. of the initial MDF
+       skewa= (-4.) skewness parameter of the initial MDF
+       dFehdR= (-0.15) initial metallicity gradient
+       Rd= (2.2 kpc) mass scale length of the disk
+       sr= (31.4 km/s) velocity dispersion at R0
+       hr= (3 kpc) scale length
+       hs= (267 kpc) dispersion scale length
+    OUTPUT:
+       p(Feh,age|R)
+    HISTORY:
+       2015-01-13 - Written - Bovy (IAS)
+    """
+    out= numpy.empty_like(feh)
+    for ii in range(len(feh)):
+        # shortcut for Age DF
+        if useInitialAgeDF:
+            ageDF= lambda a: pAgeRg(a,R,skewm=skewm,skews=skews,skewa=skewa,
+                                    dFehdR=dFehdR)
+        else:
+            ageDF= lambda a: churning_pAgeR(a,R,skewm=skewm,skews=skews,
+                                            skewa=skewa,dFehdR=dFehdR,Rd=Rd,
+                                            sr=sr,hr=hr,hs=hs)
+        # Short Rg function, so we don't have to repeat this
         ageFunc= lambda r: ageFehRg(feh[ii],r,skewm=skewm,skews=skews,
                                     dFehdR=dFehdR)
         # Integrate
