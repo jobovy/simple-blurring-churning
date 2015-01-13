@@ -207,26 +207,26 @@ def fehAgeRg(age,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
     NAME:
        fehAgeRg
     PURPOSE:
-       The metallicity corresponding to a given age at radius Rg; assuming linear increase in exp(Feh) with time from 0.05 Zsolar
+       The metallicity corresponding to a given age at radius Rg; assuming linear increase in exp(Feh) with time from 0.1 Zsolar
     INPUT:
        age - age (/Gyr)
        Rg - guiding-center radius (/kpc)
        skewm= (0.2) mean of the initial MDF at 4 kpc
        skews= (0.2) standard dev. of the initial MDF
-       dFehdR= (-0.075) initial metallicity gradient  
+       dFehdR= (-0.075) initial metallicity gradient
     OUTPUT:
        FeH(age,Rg)
     HISTORY:
        2015-01-12 - Written - Bovy (IAS)
     """
-    return numpy.log10(0.05+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.05))
+    return numpy.log10(0.1+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.1))
 
 def ageFehRg(feh,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
     """
     NAME:
        ageFehRg
     PURPOSE:
-       The age corresponding to a given metallicity at radius Rg; assuming linear increase in exp(Feh) with time from 0.05 Zsolar
+       The age corresponding to a given metallicity at radius Rg; assuming linear increase in exp(Feh) with time from 0.1 Zsolar
     INPUT:
        feh - metallicity
        Rg - guiding-center radius (/kpc)
@@ -238,16 +238,16 @@ def ageFehRg(feh,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
     HISTORY:
        2015-01-12 - Written - Bovy (IAS)
     """
-    return 10.-10.*(10.**feh-0.05)/((numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.05))
+    return 10.-10.*(10.**feh-0.1)/((numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.1))
 
 # Also need derivatives for integrals and distribution
 def _dfehdAgeRg(age,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
-    return -1./10./numpy.log(10.)*(numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.05)\
-        /(0.05+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.05))
+    return -1./10./numpy.log(10.)*(numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.1)\
+        /(0.1+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.1))
 
 def _dagedFehRg(feh,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
     return -10.*10.**feh*numpy.log(10.)\
-        /((numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.05))
+        /((numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.1))
 
 def test_dfehdAgeRg():
     ages= numpy.tile(numpy.linspace(1.,10.,101),(101,1))
@@ -404,6 +404,6 @@ def churning_pFehR(feh,R,
     return out
 
 def skewness(x,mdf):
-    m= numpy.sum(x*mdf)/numpy.sum(mdf)
-    return numpy.sum((x-m)**3.*mdf)/numpy.sum(mdf)\
-        /(numpy.sum((x-m)**2*mdf)/numpy.sum(mdf))**1.5
+    m= numpy.nansum(x*mdf)/numpy.nansum(mdf)
+    return numpy.nansum((x-m)**3.*mdf)/numpy.nansum(mdf)\
+        /(numpy.nansum((x-m)**2*mdf)/numpy.nansum(mdf))**1.5
