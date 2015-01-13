@@ -12,6 +12,8 @@ _R0= 8. #kpc
 _V0= 220. #kms
 _LINEARENRICHMENT= False
 _TAUEQ= 2.
+_ZINIT= 0.15
+_FMIG= 0.2
 def scalarDecorator(func):
     """Decorator to return scalar outputs"""
     @wraps(func)
@@ -82,8 +84,9 @@ def churning_pRgfRgi(Rgf,Rgi,tau,Rd=2.2):
     HISTORY:
        2015-01-12 - Written - Bovy (IAS)
     """
-    return 1./numpy.sqrt(2.*numpy.pi*(0.01+tau*Rgi*numpy.exp(-Rgi/Rd/2.)))\
-        *numpy.exp(-(Rgi-Rgf)**2./2./(0.01+tau*Rgi*numpy.exp(-Rgi/Rd/2.)))
+    sig= (0.01+_FMIG*tau*Rgi*numpy.exp(-(Rgi-8.)**2./9.))
+    return 1./numpy.sqrt(2.*numpy.pi)\
+        *numpy.exp(-(Rgi-Rgf)**2./2./sig)
 
 # Churning p(Rg|R,tau)
 @scalarDecorator
@@ -209,7 +212,7 @@ def fehAgeRg(age,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075,lin=False):
     NAME:
        fehAgeRg
     PURPOSE:
-       The metallicity corresponding to a given age at radius Rg; assuming linear increase in exp(Feh) with time from 0.1 Zsolar
+       The metallicity corresponding to a given age at radius Rg; assuming linear increase in exp(Feh) with time from Zinit Zsolar
     INPUT:
        age - age (/Gyr)
        Rg - guiding-center radius (/kpc)
@@ -222,17 +225,17 @@ def fehAgeRg(age,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075,lin=False):
        2015-01-12 - Written - Bovy (IAS)
     """
     if _LINEARENRICHMENT:
-        return numpy.log10(0.1+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-4.))-0.1))
+        return numpy.log10(_ZINIT+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-4.))-_ZINIT))
     else:
         eq= numpy.exp(skews+skewm+dFehdR*(Rg-4.))
-        return numpy.log10((eq-0.1)*(1.-numpy.exp(-(10.-age)/_TAUEQ))+0.1)
+        return numpy.log10((eq-_ZINIT)*(1.-numpy.exp(-(10.-age)/_TAUEQ))+_ZINIT)
 
 def ageFehRg(feh,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
     """
     NAME:
        ageFehRg
     PURPOSE:
-       The age corresponding to a given metallicity at radius Rg; assuming linear increase in exp(Feh) with time from 0.1 Zsolar
+       The age corresponding to a given metallicity at radius Rg; assuming linear increase in exp(Feh) with time from _ZINIT Zsolar
     INPUT:
        feh - metallicity
        Rg - guiding-center radius (/kpc)
@@ -245,27 +248,27 @@ def ageFehRg(feh,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
        2015-01-12 - Written - Bovy (IAS)
     """
     if _LINEARENRICHMENT:
-        return 10.-10.*(10.**feh-0.1)/((numpy.exp(skews+skewm+dFehdR*(Rg-4.))-0.1))
+        return 10.-10.*(10.**feh-_ZINIT)/((numpy.exp(skews+skewm+dFehdR*(Rg-4.))-_ZINIT))
     else:
         eq= numpy.exp(skews+skewm+dFehdR*(Rg-4.))
-        return 10.+numpy.log(1.-(10.**feh-0.1)/(eq-0.1))*_TAUEQ
+        return 10.+numpy.log(1.-(10.**feh-_ZINIT)/(eq-_ZINIT))*_TAUEQ
 
 # Also need derivatives for integrals and distribution
 def _dfehdAgeRg(age,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
     if _LINEARENRICHMENT:
-        return -1./10./numpy.log(10.)*(numpy.exp(skews+skewm+dFehdR*(Rg-4.))-0.1)\
-        /(0.1+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-4.))-0.1))
+        return -1./10./numpy.log(10.)*(numpy.exp(skews+skewm+dFehdR*(Rg-4.))-_ZINIT)\
+        /(_ZINIT+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-4.))-_ZINIT))
     else:
         eq= numpy.exp(skews+skewm+dFehdR*(Rg-4.))
-        return -(eq-0.1)*numpy.exp(-(10.-age)/_TAUEQ)/(((eq-0.1)*(1.-numpy.exp(-(10.-age)/_TAUEQ))+0.1))/numpy.log(10.)/_TAUEQ
+        return -(eq-_ZINIT)*numpy.exp(-(10.-age)/_TAUEQ)/(((eq-_ZINIT)*(1.-numpy.exp(-(10.-age)/_TAUEQ))+_ZINIT))/numpy.log(10.)/_TAUEQ
 
 def _dagedFehRg(feh,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
     if _LINEARENRICHMENT:
         return -10.*10.**feh*numpy.log(10.)\
-            /((numpy.exp(skews+skewm+dFehdR*(Rg-4.))-0.1))
+            /((numpy.exp(skews+skewm+dFehdR*(Rg-4.))-_ZINIT))
     else:
         eq= numpy.exp(skews+skewm+dFehdR*(Rg-4.))
-        return -_TAUEQ*numpy.log(10.)*10.**feh/(eq-0.1)/(1.-(10.**feh-0.1)/(eq-0.1))
+        return -_TAUEQ*numpy.log(10.)*10.**feh/(eq-_ZINIT)/(1.-(10.**feh-_ZINIT)/(eq-_ZINIT))
 
 def test_dfehdAgeRg():
     ages= numpy.tile(numpy.linspace(1.,10.,101),(101,1))
