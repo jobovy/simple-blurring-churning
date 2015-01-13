@@ -10,6 +10,8 @@ from galpy.df import dehnendf
 from skewnormal import skewnormal
 _R0= 8. #kpc
 _V0= 220. #kms
+_LINEARENRICHMENT= False
+_TAUEQ= 2.
 def scalarDecorator(func):
     """Decorator to return scalar outputs"""
     @wraps(func)
@@ -202,7 +204,7 @@ def pAgeRg(age,Rg,
                   /numpy.fabs(_dagedFehRg(ageFeh,Rg,skewm=skewm,dFehdR=dFehdR))
 
 # The relation between age and metallicity at a given radius
-def fehAgeRg(age,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
+def fehAgeRg(age,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075,lin=False):
     """
     NAME:
        fehAgeRg
@@ -219,7 +221,11 @@ def fehAgeRg(age,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
     HISTORY:
        2015-01-12 - Written - Bovy (IAS)
     """
-    return numpy.log10(0.1+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.1))
+    if _LINEARENRICHMENT:
+        return numpy.log10(0.1+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-4.))-0.1))
+    else:
+        eq= numpy.exp(skews+skewm+dFehdR*(Rg-4.))
+        return numpy.log10((eq-0.1)*(1.-numpy.exp(-(10.-age)/_TAUEQ))+0.1)
 
 def ageFehRg(feh,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
     """
@@ -238,16 +244,28 @@ def ageFehRg(feh,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
     HISTORY:
        2015-01-12 - Written - Bovy (IAS)
     """
-    return 10.-10.*(10.**feh-0.1)/((numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.1))
+    if _LINEARENRICHMENT:
+        return 10.-10.*(10.**feh-0.1)/((numpy.exp(skews+skewm+dFehdR*(Rg-4.))-0.1))
+    else:
+        eq= numpy.exp(skews+skewm+dFehdR*(Rg-4.))
+        return 10.+numpy.log(1.-(10.**feh-0.1)/(eq-0.1))*_TAUEQ
 
 # Also need derivatives for integrals and distribution
 def _dfehdAgeRg(age,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
-    return -1./10./numpy.log(10.)*(numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.1)\
-        /(0.1+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.1))
+    if _LINEARENRICHMENT:
+        return -1./10./numpy.log(10.)*(numpy.exp(skews+skewm+dFehdR*(Rg-4.))-0.1)\
+        /(0.1+(10.-age)/10.*(numpy.exp(skews+skewm+dFehdR*(Rg-4.))-0.1))
+    else:
+        eq= numpy.exp(skews+skewm+dFehdR*(Rg-4.))
+        return -(eq-0.1)*numpy.exp(-(10.-age)/_TAUEQ)/(((eq-0.1)*(1.-numpy.exp(-(10.-age)/_TAUEQ))+0.1))/numpy.log(10.)/_TAUEQ
 
 def _dagedFehRg(feh,Rg,skewm=0.2,skews=0.2,dFehdR=-0.075):
-    return -10.*10.**feh*numpy.log(10.)\
-        /((numpy.exp(skews+skewm+dFehdR*(Rg-8.))-0.1))
+    if _LINEARENRICHMENT:
+        return -10.*10.**feh*numpy.log(10.)\
+            /((numpy.exp(skews+skewm+dFehdR*(Rg-4.))-0.1))
+    else:
+        eq= numpy.exp(skews+skewm+dFehdR*(Rg-4.))
+        return -_TAUEQ*numpy.log(10.)*10.**feh/(eq-0.1)/(1.-(10.**feh-0.1)/(eq-0.1))
 
 def test_dfehdAgeRg():
     ages= numpy.tile(numpy.linspace(1.,10.,101),(101,1))
@@ -255,16 +273,21 @@ def test_dfehdAgeRg():
     dx= 10.**-8.
     dage= _dfehdAgeRg(ages,Rs)
     dage_num= (fehAgeRg(ages+dx,Rs)-fehAgeRg(ages,Rs))/dx
+    print numpy.amax(numpy.fabs(dage-dage_num))
     assert numpy.all(numpy.fabs(dage-dage_num) < 10.**-6.), 'dfehdAgeRg implemented incorrectly'
     return None
 
 def test_dagedFgeRg():
-    fehs= numpy.tile(numpy.linspace(-1.5,0.7,101),(101,1))
     Rs= numpy.tile(numpy.linspace(2.,16.,101),(101,1)).T
+    fehs= numpy.tile(numpy.linspace(-1.5,0.7,101),(101,1))
+    Rs[fehs > fehAgeRg(0.,Rs)-0.03]= numpy.nan
     dx= 10.**-8.
     dfeh= _dagedFehRg(fehs,Rs)
     dfeh_num= (ageFehRg(fehs+dx,Rs)-ageFehRg(fehs,Rs))/dx
-    assert numpy.all(numpy.fabs(dfeh-dfeh_num) < 10.**-5.), 'dagedFehRg implemented incorrectly'
+    print numpy.nanmax(numpy.fabs(dfeh-dfeh_num))
+    print Rs[:,-20]
+    print (numpy.fabs(dfeh-dfeh_num))[:,-20]
+    assert numpy.all((numpy.fabs(dfeh-dfeh_num) < 10.**-5.)+numpy.isnan(dfeh)), 'dagedFehRg implemented incorrectly'
     return None
 
 # Blurring MDF
@@ -394,6 +417,13 @@ def churning_pFehR(feh,R,
         def intFunc(x):
             tage= ageFunc(x)
             if tage <= 0.: return 0.
+            if tage > 10.: return 0.
+            if numpy.isnan(tage): return 0.
+            #print x, tage, ageDF(ageFunc(x)),\
+            #    churning_pRgRtau(x,R,tage,
+            #                     Rd=Rd,sr=sr,
+            #                     hr=hr,hs=hs),\
+            #                     numpy.fabs(_dfehdAgeRg(tage,x))
             return ageDF(ageFunc(x))\
                                 *churning_pRgRtau(x,R,tage,
                                                   Rd=Rd,sr=sr,
