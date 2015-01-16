@@ -72,7 +72,7 @@ def blurring_pRgR(Rg,R,sr=31.4,hr=3.,hs=267.):
 
 # Churning p(final Rg | initial Rg, tau)
 @scalarDecorator
-def churning_pRgfRgi(Rgf,Rgi,tau,Rd=2.2):
+def churning_pRgfRgi(Rgf,Rgi,tau,fmig=1.):
     """
     NAME:
        churning_pRgfRgi
@@ -82,19 +82,19 @@ def churning_pRgfRgi(Rgf,Rgi,tau,Rd=2.2):
        Rgf - Guiding center radius (/kpc), can be array
        Rgi - Initial guiding-center radius (/kpc)
        tau - time (/Gyr)
-       Rd= (2.2 kpc) mass scale length of the disk
+       fmig= (1.) efficiency of migration relative to fiducial model
     OUTPUT:
        p(Rgf|Rgi)
     HISTORY:
        2015-01-12 - Written - Bovy (IAS)
     """
-    sig= (0.01+0.2*tau*Rgi*numpy.exp(-(Rgi-8.)**2./16.))
+    sig= (0.01+0.2*fmig*tau*Rgi*numpy.exp(-(Rgi-8.)**2./16.))
     return 1./numpy.sqrt(2.*numpy.pi)\
         *numpy.exp(-(Rgi-Rgf)**2./2./sig)
 
 # Churning p(Rg|R,tau)
 @scalarDecorator
-def churning_pRgRtau(Rg,R,tau,Rd=2.2,sr=31.4,hr=3.,hs=267.):
+def churning_pRgRtau(Rg,R,tau,fmig=1.,sr=31.4,hr=3.,hs=267.):
     """
     NAME:
        churning_pRgRtau
@@ -104,7 +104,7 @@ def churning_pRgRtau(Rg,R,tau,Rd=2.2,sr=31.4,hr=3.,hs=267.):
        Rg - Guiding center radius (/kpc), can be array
        R - Given radius (/kpc)
        tau - time (/Gyr)
-       Rd= (2.2 kpc) mass scale length of the disk
+       fmig= (1.) efficiency of migration relative to fiducial model
        sr= (31.4 km/s) velocity dispersion at R0
        hr= (3 kpc) scale length
        hs= (267 kpc) dispersion scale length
@@ -119,14 +119,14 @@ def churning_pRgRtau(Rg,R,tau,Rd=2.2,sr=31.4,hr=3.,hs=267.):
     for ii in range(len(Rg)):
         out[ii]= integrate.fixed_quad(lambda x: df(Orbit([R/8.,0.,x/R]))\
                                           *churning_pRgfRgi(x,Rg[ii],tau,
-                                                            Rd=Rd),
+                                                            fmig=fmig),
                                       numpy.amax([Rg[ii]-4.,0.]),
                                       Rg[ii]+6.,n=40)[0]
     return out
 
 # Churning p(Rg|R)
 @scalarDecorator
-def churning_pRgR(Rg,R,Rd=2.2,sr=31.4,hr=3.,hs=267.):
+def churning_pRgR(Rg,R,fmig=1.,sr=31.4,hr=3.,hs=267.):
     """
     NAME:
        churning_pRgR
@@ -135,7 +135,7 @@ def churning_pRgR(Rg,R,Rd=2.2,sr=31.4,hr=3.,hs=267.):
     INPUT:
        Rg - Guiding center radius (/kpc), can be array
        R - Given radius (/kpc)
-       Rd= (2.2 kpc) mass scale length of the disk
+       fmig= (1.) efficiency of migration relative to fiducial model
        sr= (31.4 km/s) velocity dispersion at R0
        hr= (3 kpc) scale length
        hs= (267 kpc) dispersion scale length
@@ -152,7 +152,7 @@ def churning_pRgR(Rg,R,Rd=2.2,sr=31.4,hr=3.,hs=267.):
             lambda tau: integrate.fixed_quad(lambda x: \
                                                  df(Orbit([R/8.,0.,x/R]))
                                              *churning_pRgfRgi(x,Rg[ii],
-                                                               tau,Rd=Rd),
+                                                               tau,fmig=fmig),
                                              numpy.amax([Rg[ii]-4.,0.]),
                                              Rg[ii]+6.,n=40)[0],
             0.,10.,tol=10.**-4.,rtol=10**-3.,vec_func=False)[0]
@@ -377,7 +377,7 @@ def blurring_pFehR(feh,R,
 @scalarDecorator
 def churning_pAgeR(age,R,
                    skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,skewa=_SKEWA_DEFAULT,
-                   dFehdR=_DFEHDR_DEFAULT,Rd=2.2,
+                   dFehdR=_DFEHDR_DEFAULT,fmig=1.,
                    sr=31.4,hr=3.,hs=267.):
     """
     NAME:
@@ -391,7 +391,7 @@ def churning_pAgeR(age,R,
        skews= (0.2) standard dev. of the initial MDF
        skewa= (-4.) skewness parameter of the initial MDF
        dFehdR= (-0.15) initial metallicity gradient
-       Rd= (2.2 kpc) mass scale length of the disk
+       fmig= (1.) efficiency of migration relative to fiducial model
        sr= (31.4 km/s) velocity dispersion at R0
        hr= (3 kpc) scale length
        hs= (267 kpc) dispersion scale length
@@ -408,7 +408,7 @@ def churning_pAgeR(age,R,
                              skewm=skewm,skews=skews,
                              skewa=skewa,
                              dFehdR=dFehdR)\
-                *churning_pRgR(x,R,Rd=Rd,sr=sr,
+                *churning_pRgR(x,R,fmig=fmig,sr=sr,
                                hr=hr,hs=hs)\
                 /numpy.fabs(_dagedFehRg(fehAgeRg(age[ii],x,skewm=skewm,skews=skews,dFehdR=dFehdR),x)),
             numpy.amax([0.,R-4.]),R+6.,
@@ -421,7 +421,7 @@ def churning_pAgeR(age,R,
 def churning_pFehR(feh,R,
                    skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,
                    skewa=_SKEWA_DEFAULT,
-                   dFehdR=_DFEHDR_DEFAULT,Rd=2.2,
+                   dFehdR=_DFEHDR_DEFAULT,fmig=1.,
                    sr=31.4,hr=3.,hs=267.,
                    useInitialAgeDF=True):
     """
@@ -436,7 +436,7 @@ def churning_pFehR(feh,R,
        skews= (0.2) standard dev. of the initial MDF
        skewa= (-4.) skewness parameter of the initial MDF
        dFehdR= (-0.15) initial metallicity gradient
-       Rd= (2.2 kpc) mass scale length of the disk
+       fmig= (1.) efficiency of migration relative to fiducial model
        sr= (31.4 km/s) velocity dispersion at R0
        hr= (3 kpc) scale length
        hs= (267 kpc) dispersion scale length
@@ -453,7 +453,7 @@ def churning_pFehR(feh,R,
                                     dFehdR=dFehdR)
         else:
             ageDF= lambda a: churning_pAgeR(a,R,skewm=skewm,skews=skews,
-                                            skewa=skewa,dFehdR=dFehdR,Rd=Rd,
+                                            skewa=skewa,dFehdR=dFehdR,fmig=fmig,
                                             sr=sr,hr=hr,hs=hs)
         # Short age function, so we don't have to repeat this
         ageFunc= lambda r: ageFehRg(feh[ii],r,skewm=skewm,skews=skews,
@@ -465,7 +465,7 @@ def churning_pFehR(feh,R,
                 return 0.
             return ageDF(ageFunc(x))\
                                 *churning_pRgRtau(x,R,tage,
-                                                  Rd=Rd,sr=sr,
+                                                  fmig=fmig,sr=sr,
                                                   hr=hr,hs=hs)\
                 /numpy.fabs(_dfehdAgeRg(tage,x))
         out[ii]= integrate.quad(intFunc,
@@ -477,7 +477,7 @@ def churning_pFehR(feh,R,
 def churning_pFehAgeR(feh,age,R,
                       skewm=_SKEWM_DEFAULT,skews=_SKEWS_DEFAULT,
                       skewa=_SKEWA_DEFAULT,
-                      dFehdR=_DFEHDR_DEFAULT,Rd=2.2,
+                      dFehdR=_DFEHDR_DEFAULT,fmig=1.,
                       sr=31.4,hr=3.,hs=267.,
                       useInitialAgeDF=True):
     """
@@ -493,7 +493,7 @@ def churning_pFehAgeR(feh,age,R,
        skews= (0.2) standard dev. of the initial MDF
        skewa= (-4.) skewness parameter of the initial MDF
        dFehdR= (-0.15) initial metallicity gradient
-       Rd= (2.2 kpc) mass scale length of the disk
+       fmig= (1.) efficiency of migration relative to fiducial model
        sr= (31.4 km/s) velocity dispersion at R0
        hr= (3 kpc) scale length
        hs= (267 kpc) dispersion scale length
@@ -509,7 +509,7 @@ def churning_pFehAgeR(feh,age,R,
                      dFehdR=dFehdR)
     else:
         ageP= churning_pAgeR(age,R,skewm=skewm,skews=skews,
-                             skewa=skewa,dFehdR=dFehdR,Rd=Rd,
+                             skewa=skewa,dFehdR=dFehdR,fmig=fmig,
                              sr=sr,hr=hr,hs=hs)
     for ii in range(len(feh)):
         trg= RgAgeFeh(age,feh[ii],
@@ -519,7 +519,7 @@ def churning_pFehAgeR(feh,age,R,
             out[ii]= 0.
             continue
         out[ii]= \
-            churning_pRgRtau(trg,R,age,Rd=Rd,sr=sr,hr=hr,hs=hs)\
+            churning_pRgRtau(trg,R,age,fmig=fmig,sr=sr,hr=hr,hs=hs)\
             *ageP/_dfehdRgAge(trg,age,skewm=skewm,skews=skews,dFehdR=dFehdR)
     return out
 
